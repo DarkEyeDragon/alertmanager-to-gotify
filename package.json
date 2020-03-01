@@ -1,7 +1,7 @@
 {
-  "name": "ls",
+  "name": "alertmanager-to-gotify",
   "version": "1.0.0",
-  "description": "",
+  "description": "Sends a message to gotify server for each alert that fires from Prometheus Alertmanager",
   "main": "index.js",
   "dependencies": {
     "body-parser": "^1.19.0",
@@ -9,9 +9,7 @@
     "node-fetch": "^2.6.0"
   },
   "devDependencies": {},
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC"
+  "author": "Andrew Miller",
+  "repository": "",
+  "license": "AGPL-3.0-or-later"
 }
