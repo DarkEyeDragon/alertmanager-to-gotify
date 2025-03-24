@@ -27,28 +27,29 @@ const app = connect();
 app.use(bodyParser.json());
 
 app.use(async (req, res) => {
-  console.log("Input", req.body);
-  for (const alertId in req.body.alerts) {
-    const alert = req.body.alerts[alertId];
-    if (alert.status !== "firing")
-      continue;
-    const annotations = Object.assign({}, req.body.commonAnnotations,
-                                      alert.annotations);
+    console.log("Input", req.body);
+
+    const alert = req.body.alert;
+    const annotations = alert.annotations;
     const body = {
-      title: annotations.title,
-      message: annotations.description,
-      priority: parseInt(annotations.priority || "5")
+        title: annotations.title,
+        message: annotations.description,
+        priority: parseInt(annotations.priority || "5")
     };
-    console.log("Dispatching", body);
-    await fetch(process.env.GOTIFY_MESSAGE_ENDPOINT,
-                { method: 'POST', body: JSON.stringify(body),
-                  headers: { "Content-Type": "application/json",
-                             "X-Gotify-Key": process.env.GOTIFY_TOKEN
-                           }});
-  }
-  res.end("SUCCESS\n");
+    console.log("Dispatching", JSON.stringify(body));
+    const response = await fetch(process.env.GOTIFY_MESSAGE_ENDPOINT,
+        {
+            method: 'POST', body: JSON.stringify(body),
+            headers: {
+                "Content-Type": "application/json",
+                "X-Gotify-Key": process.env.GOTIFY_TOKEN
+            }
+        }).catch(err => console.log(err));
+
+    console.log("Response", response);
+    res.end("SUCCESS\n");
 });
 
 const server = http.createServer(app)
-  .listen(parseInt(process.env.LISTEN_PORT || '8435'),
-                   process.env.LISTEN_ADDR || '::');
+    .listen(parseInt(process.env.LISTEN_PORT || '8435'),
+        process.env.LISTEN_ADDR || '::');
