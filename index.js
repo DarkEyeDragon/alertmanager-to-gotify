@@ -38,23 +38,32 @@ app.use(async (req, res) => {
     for (const alert of alerts) {
         const labels = alert.labels || {};
         const annotations = alert.annotations || {};
-
-        const title = annotations.title || `Alert: ${labels.alertname || 'Unknown'}`;
-        const message = annotations.description || annotations.summary || 'No description provided';
         const priority = parseInt(annotations.priority || '5');
 
-        const formattedMessage = `
-🚨 *${title}*
-📁 Folder: ${labels.grafana_folder || 'N/A'}
-📌 Instance: ${labels.instance || 'N/A'}
-💾 Volume: ${labels.volume || 'N/A'}
-📝 Description: ${message}
-🔗 View alert: ${alert.generatorURL || 'N/A'}
+        // Build a clean summary of labels (excluding __-prefixed keys)
+        const labelText = Object.entries(labels)
+            .filter(([key]) => !key.startsWith('__'))
+            .map(([key, value]) => `🔸 ${key}: ${value}`)
+            .join('\n');
+
+        // Same for annotations
+        const annotationText = Object.entries(annotations)
+            .filter(([key]) => !key.startsWith('__') && key !== 'priority')
+            .map(([key, value]) => `📝 ${key}: ${value}`)
+            .join('\n');
+
+        const title = annotations.title || `Alert: ${labels.alertname || 'Unknown'}`;
+
+        const fullMessage = `
+🚨 ${title}
+${labelText ? `\n📦 Labels:\n${labelText}` : ''}
+${annotationText ? `\n🗒 Annotations:\n${annotationText}` : ''}
+🔗 [View alert](${alert.generatorURL || 'N/A'})
 `.trim();
 
         const body = {
             title,
-            message: formattedMessage,
+            message: fullMessage,
             priority
         };
 
@@ -87,4 +96,3 @@ const server = http.createServer(app)
     .listen(parseInt(process.env.LISTEN_PORT || '8435'), process.env.LISTEN_ADDR || '::', () => {
         console.log(`Webhook-Gotify Adapter listening on ${process.env.LISTEN_ADDR || '::'}:${process.env.LISTEN_PORT || '8435'}`);
     });
-
