@@ -27,29 +27,64 @@ const app = connect();
 app.use(bodyParser.json());
 
 app.use(async (req, res) => {
-    console.log("Input", req.body);
+    const alerts = req.body;
 
-    const alert = req.body.alert;
-    const annotations = alert.annotations;
-    const body = {
-        title: annotations.title,
-        message: annotations.description,
-        priority: parseInt(annotations.priority || "5")
-    };
-    console.log("Dispatching", JSON.stringify(body));
-    const response = await fetch(process.env.GOTIFY_MESSAGE_ENDPOINT,
-        {
-            method: 'POST', body: JSON.stringify(body),
-            headers: {
-                "Content-Type": "application/json",
-                "X-Gotify-Key": process.env.GOTIFY_TOKEN
+    if (!Array.isArray(alerts)) {
+        console.error("Invalid payload: Expected array of alerts");
+        res.statusCode = 400;
+        return res.end("Invalid payload format");
+    }
+
+    for (const alert of alerts) {
+        const labels = alert.labels || {};
+        const annotations = alert.annotations || {};
+
+        const title = annotations.title || `Alert: ${labels.alertname || 'Unknown'}`;
+        const message = annotations.description || annotations.summary || 'No description provided';
+        const priority = parseInt(annotations.priority || '5');
+
+        const formattedMessage = `
+🚨 *${title}*
+📁 Folder: ${labels.grafana_folder || 'N/A'}
+📌 Instance: ${labels.instance || 'N/A'}
+💾 Volume: ${labels.volume || 'N/A'}
+📝 Description: ${message}
+🔗 View alert: ${alert.generatorURL || 'N/A'}
+`.trim();
+
+        const body = {
+            title,
+            message: formattedMessage,
+            priority
+        };
+
+        try {
+            console.log("Dispatching:", JSON.stringify(body));
+            const response = await fetch(process.env.GOTIFY_MESSAGE_ENDPOINT, {
+                method: 'POST',
+                body: JSON.stringify(body),
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Gotify-Key": process.env.GOTIFY_TOKEN
+                }
+            });
+
+            if (!response.ok) {
+                console.error(`Gotify returned HTTP ${response.status}`);
+            } else {
+                console.log("Sent to Gotify successfully.");
             }
-        }).catch(err => console.log(err));
 
-    console.log("Response", response);
+        } catch (err) {
+            console.error("Error sending to Gotify:", err.message);
+        }
+    }
+
     res.end("SUCCESS\n");
 });
 
 const server = http.createServer(app)
-    .listen(parseInt(process.env.LISTEN_PORT || '8435'),
-        process.env.LISTEN_ADDR || '::');
+    .listen(parseInt(process.env.LISTEN_PORT || '8435'), process.env.LISTEN_ADDR || '::', () => {
+        console.log(`Webhook-Gotify Adapter listening on ${process.env.LISTEN_ADDR || '::'}:${process.env.LISTEN_PORT || '8435'}`);
+    });
+
